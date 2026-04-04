@@ -92,21 +92,6 @@ Metadata exists to answer:
 
 ---
 
-## Module Structure
-
-```id="m3t9ad"
-modules/metadata/
-├── include/softadastra/metadata/
-│   ├── FileEntry.hpp
-│   ├── DeviceState.hpp
-│   ├── SyncState.hpp
-│   ├── MetadataStore.hpp
-│   └── SqliteMetadataStore.hpp
-└── src/
-```
-
----
-
 ## Core Components
 
 ### FileEntry
