@@ -1,0 +1,45 @@
+{
+  "name": "metadata",
+  "namespace": "softadastra",
+  "version": "0.1.0",
+  "type": "library",
+  "include": "include",
+  "license": "MIT",
+  "description": "Softadastra Metadata provides structured node information for distributed systems, enabling identity, runtime visibility, and capability tracking across unreliable networks.",
+  "keywords": [
+    "softadastra",
+    "metadata",
+    "node-metadata",
+    "node-identity",
+    "node-info",
+    "runtime",
+    "capabilities",
+    "discovery",
+    "peer-metadata",
+    "distributed-systems",
+    "p2p",
+    "peer-to-peer",
+    "network",
+    "systems",
+    "infrastructure",
+    "observability",
+    "offline-first",
+    "c++",
+    "cpp",
+    "c++20",
+    "library"
+  ],
+  "repository": "https://github.com/softadastra/metadata",
+  "authors": [
+    {
+      "name": "Gaspard Kirira",
+      "github": "Gaspardkirira"
+    }
+  ],
+  "deps": [
+    {
+      "id": "softadastra/discovery",
+      "version": "0.2.0"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "dependencies": [
+    {
+      "commit": "4e6dd13d50acd79fc492310ab3885af1a7a34074",
+      "hash": "e9771d184bb66db95b15ab210ecaf7034982f7ef8f775b3413347c67aa83f247",
+      "id": "softadastra/discovery",
+      "repo": "https://github.com/softadastra/discovery",
+      "tag": "v0.2.0",
+      "version": "0.2.0"
+    },
+    {
+      "commit": "6736c8315b16f629f52bc3bd7a6c384a9b238e5a",
+      "hash": "0a79e961aa0601c42d5da7e533388e9fa818423a270ee1824cde3a8bbaf24d20",
+      "id": "softadastra/transport",
+      "repo": "https://github.com/softadastra/transport",
+      "tag": "v0.5.0",
+      "version": "0.5.0"
+    },
+    {
+      "commit": "fb424b88acc5eef5d7e9bf1ff31f8e7297dec216",
+      "hash": "193705bd508c8792c55f03170291efa658027b9df09ab29f46ed71f5de3414d4",
+      "id": "softadastra/sync",
+      "repo": "https://github.com/softadastra/sync",
+      "tag": "v0.3.0",
+      "version": "0.3.0"
+    },
+    {
+      "commit": "74d20f6df00c2607e9b401e2158b39abe44763cc",
+      "hash": "3b450c2db017e30fac03b0ccfdef1b4cc2b36fb3953dd406ad25189c54d65628",
+      "id": "softadastra/store",
+      "repo": "https://github.com/softadastra/store",
+      "tag": "v0.7.1",
+      "version": "0.7.1"
+    },
+    {
+      "commit": "6a65f39f7e7e4ffd7e539a962a28b09b067dfbcc",
+      "hash": "49b52f2186f5c5078b0da006d5fdf0ca01bc06216d122f52d1b2aee92093183b",
+      "id": "softadastra/wal",
+      "repo": "https://github.com/softadastra/wal",
+      "tag": "v0.8.0",
+      "version": "0.8.0"
+    },
+    {
+      "commit": "75c87ffdbc9e3e0ad51afce4a4bde7df8faf9da6",
+      "hash": "e06934492c438a9949126a2f78d19c2f168139a86b072661080a1b05f110c692",
+      "id": "softadastra/fs",
+      "repo": "https://github.com/softadastra/fs",
+      "tag": "v1.8.0",
+      "version": "1.8.0"
+    },
+    {
+      "commit": "ab087d56af5fc585d063e4b0c2dc91a800c06917",
+      "hash": "19f729d37bc333060d28ca6d15dc9e47aa30107562d904e365dd3e0c792e99b4",
+      "id": "softadastra/core",
+      "repo": "https://github.com/softadastra/core",
+      "tag": "v1.4.0",
+      "version": "1.4.0"
+    }
+  ],
+  "lockVersion": 1
+}

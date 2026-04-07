@@ -1,290 +1,205 @@
-# softadastra/metadata
+# Softadastra Metadata
 
-> Structured state layer for local-first systems.
+**Node metadata for real-world distributed systems.**
 
-The `metadata` module is the **memory of Softadastra**.
+Softadastra Metadata provides a unified way to describe, collect, and share information about nodes in a distributed system.
 
-It maintains a **structured, queryable view of the system state**, independent from:
+It allows you to:
+- describe node identity and capabilities
+- expose runtime information (OS, uptime, version)
+- enrich discovered peers with metadata
+- maintain a consistent view of the network
 
-* The filesystem (fs)
-* The operation log (wal)
-* The network (transport)
-
----
-
-## Purpose
-
-The goal of `softadastra/metadata` is simple:
-
-> Maintain the current known state of files, devices, and synchronization.
+Built for systems that must operate reliably under unstable or local-first conditions.
 
 ---
 
-## Core Principle
+## Why Metadata matters
 
-> WAL stores what happened. Metadata stores what is known.
+In distributed systems:
 
-* WAL = history
-* Metadata = current state
+- nodes are dynamic
+- environments are heterogeneous
+- identities are not always known in advance
+- systems must adapt at runtime
 
----
+Softadastra Metadata solves this by enabling:
 
-## Responsibilities
+> **Consistent, structured node information across the network.**
 
-The `metadata` module provides:
-
-* File state tracking
-* Device state tracking
-* Sync state tracking
-* Version mapping
-* Queryable state access
+No assumptions. No central authority. Just observable nodes.
 
 ---
 
-## What this module does NOT do
+## Key Features
 
-* No filesystem observation (fs module)
-* No durability log (wal module)
-* No network communication (transport module)
-* No sync decision logic (sync module)
-
-👉 It stores state, nothing more.
-
----
-
-## Design Principles
-
-### 1. Derived state
-
-Metadata is derived from:
-
-* WAL replay
-* Sync operations
+- 🧠 Structured node metadata (identity, runtime, capabilities)
+- 🔁 Automatic refresh of runtime information
+- 🔍 Integration with discovery layer
+- 🌍 Works in offline-first environments
+- ⚡ Lightweight and fast
+- 🧩 Simple public API via `MetadataService`
 
 ---
 
-### 2. Consistency
+## Installation
 
-The state must always be:
+```bash
+vix add @softadastra/metadata
+vix install
+```
 
-* Internally consistent
-* Queryable
-* Recoverable
+## Quick Start
 
----
-
-### 3. Separation from WAL
-
-* WAL = append-only log
-* Metadata = mutable structured state
-
-⚠️ These must never be merged.
-
----
-
-### 4. Query-first
-
-Metadata exists to answer:
-
-* What files do we have?
-* What version is this file?
-* What is synced or pending?
-
----
-
-## Core Components
-
-### FileEntry
-
-Represents a file in the system.
-
-Contains:
-
-* Path
-* Hash
-* Version
-* Size
-* Last modified
-* Sync status
-
----
-
-### DeviceState
-
-Represents a peer/device.
-
-Contains:
-
-* Device ID
-* Last seen
-* Known sequence
-* Connection state
-
----
-
-### SyncState
-
-Tracks synchronization status.
-
-Examples:
-
-* Synced
-* Pending
-* Out-of-date
-
----
-
-### MetadataStore
-
-Abstract interface.
-
-Provides:
-
-* Read/write operations
-* Queries
-* State updates
-
----
-
-### SqliteMetadataStore
-
-Concrete implementation using SQLite.
-
-Provides:
-
-* Persistent state
-* Query capabilities
-* Transaction safety
-
----
-
-## Example Usage
-
-```cpp id="ex6"
-#include <softadastra/metadata/SqliteMetadataStore.hpp>
+```cpp
+#include <softadastra/metadata/metadata.hpp>
 
 using namespace softadastra::metadata;
 
-SqliteMetadataStore store("data/metadata.db");
+MetadataOptions options;
+options.node_id = "node-a";
+options.display_name = "Node A";
+options.version = "0.1.0";
 
-auto file = store.getFile("/docs/file.txt");
+MetadataService metadata(options, discovery_engine);
 
-if (!file)
+metadata.start();
+
+auto local = metadata.local_or_refresh();
+
+if (local)
 {
-    // create entry
+    std::cout << local->identity.node_id << std::endl;
+    std::cout << local->runtime.hostname << std::endl;
 }
 ```
 
 ---
 
-## Integration
+## Concepts
 
-Used by:
+### MetadataService
 
-* sync (primary)
-* wal (indirect via replay)
-* app layer
+The main entry point of the module.
 
----
+Responsible for:
 
-## Data Model
+- building local node metadata
+- refreshing runtime information
+- exposing metadata to other modules
+- maintaining a registry of known nodes
 
-### File state
+### MetadataOptions
 
-Tracks:
+Simple configuration:
 
-* Current version
-* Content hash
-* Sync status
+```cpp
+MetadataOptions options;
+options.node_id = "node-a";
+options.display_name = "Node A";
+options.version = "0.1.0";
+```
 
----
+### NodeMetadata
 
-### Device state
+Represents the full state of a node:
 
-Tracks:
+```cpp
+NodeMetadata metadata;
 
-* Known peers
-* Last sync point
-* Availability
-
----
-
-### Sync state
-
-Tracks:
-
-* Pending operations
-* Applied operations
-* Missing operations
+metadata.identity.node_id;
+metadata.runtime.hostname;
+metadata.runtime.os_name;
+metadata.runtime.uptime_ms;
+metadata.capabilities.values;
+```
 
 ---
 
-## Recovery Model
+## How it works
 
-1. WAL is replayed
-2. Metadata is rebuilt or updated
-3. Sync resumes from consistent state
-
----
-
-## Dependencies
-
-### Internal
-
-* softadastra/core
-
-### External
-
-* SQLite (initial implementation)
+- Metadata is built from local providers
+- Runtime information is collected (hostname, OS, uptime)
+- Metadata is refreshed periodically
+- Discovery layer provides visibility of peers
+- Metadata is attached to known nodes
+- A registry maintains all known metadata
 
 ---
 
-## MVP Scope
+## Architecture
 
-* Single device state tracking
-* Basic file entries
-* Simple sync status
-* No advanced indexing
+MetadataService (public API)
+        ↓
+MetadataEngine (orchestration)
+        ↓
+IMetadataProvider (data source)
+        ↓
+MetadataRegistry (state)
+
+---
+
+## Examples
+
+Build:
+
+```bash
+vix build
+```
+
+Run minimal example:
+
+```bash
+./build-ninja/examples/metadata_minimal
+```
+
+---
+
+## Designed for the real world
+
+Softadastra Metadata is not built for ideal conditions.
+
+It is built for:
+
+- dynamic nodes
+- unstable environments
+- local-first systems
+- peer-to-peer architectures
+
+---
+
+## Position in Softadastra
+
+Metadata sits on top of discovery:
+
+Discovery → Metadata → Transport → Sync → Store
+
+- Discovery finds peers
+- Metadata describes them
+- Transport connects them
+- Sync exchanges data
 
 ---
 
 ## Roadmap
 
-* Indexed queries (performance)
-* Multi-device state optimization
-* Conflict metadata
-* Snapshot support
-* In-memory cache layer
-* Alternative storage backends
-
----
-
-## Rules
-
-* Never act as a source of truth
-* Never replace WAL
-* Always reflect current known state
-* Always remain queryable
-
----
-
-## Philosophy
-
-Metadata is not truth.
-
-> It is a projection of truth.
-
----
-
-## Summary
-
-* Stores structured state
-* Enables queries
-* Supports sync decisions
-* Complements WAL
+- Distributed metadata propagation
+- Metadata synchronization across peers
+- Persistent metadata storage (optional backends)
+- Filtering and querying capabilities
+- Extended capabilities system
 
 ---
 
 ## License
 
-See root LICENSE file.
+MIT
+
+---
+
+## Softadastra
+
+Softadastra is a foundational system for building reliable software in unreliable environments.
+
+Write locally. Persist first. Sync later.
+
