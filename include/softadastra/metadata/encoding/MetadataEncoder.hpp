@@ -1,14 +1,26 @@
-/*
- * MetadataEncoder.hpp
+/**
+ *
+ *  @file MetadataEncoder.hpp
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Softadastra.
+ *  All rights reserved.
+ *  https://github.com/softadastra/softadastra
+ *
+ *  Licensed under the Apache License, Version 2.0.
+ *
+ *  Softadastra Metadata
+ *
  */
 
 #ifndef SOFTADASTRA_METADATA_ENCODER_HPP
 #define SOFTADASTRA_METADATA_ENCODER_HPP
 
 #include <cstdint>
-#include <cstring>
+#include <string>
 #include <vector>
 
+#include <softadastra/store/utils/Serializer.hpp>
 #include <softadastra/metadata/core/NodeMetadata.hpp>
 #include <softadastra/metadata/types/CapabilityType.hpp>
 
@@ -16,110 +28,129 @@ namespace softadastra::metadata::encoding
 {
   namespace core = softadastra::metadata::core;
   namespace types = softadastra::metadata::types;
+  namespace store_utils = softadastra::store::utils;
 
+  /**
+   * @brief Encodes node metadata into a deterministic binary payload.
+   *
+   * Payload format:
+   *
+   * @code
+   * uint32 node_id_size
+   * bytes  node_id
+   * uint32 display_name_size
+   * bytes  display_name
+   * uint32 hostname_size
+   * bytes  hostname
+   * uint32 os_name_size
+   * bytes  os_name
+   * uint32 version_size
+   * bytes  version
+   * int64  started_at_millis
+   * int64  uptime_millis
+   * uint32 capability_count
+   * uint8  capability_0
+   * uint8  capability_1
+   * ...
+   * @endcode
+   */
   class MetadataEncoder
   {
   public:
     /**
-     * @brief Encode one node metadata payload
+     * @brief Encodes one node metadata payload.
      *
-     * Payload format:
-     *   [uint32_t node_id_size][node_id bytes]
-     *   [uint32_t display_name_size][display_name bytes]
-     *   [uint32_t hostname_size][hostname bytes]
-     *   [uint32_t os_name_size][os_name bytes]
-     *   [uint32_t version_size][version bytes]
-     *   [uint64_t started_at]
-     *   [uint64_t uptime_ms]
-     *   [uint32_t capability_count]
-     *   [uint8_t capability_0]
-     *   [uint8_t capability_1]
-     *   ...
+     * Invalid metadata returns an empty buffer.
+     *
+     * @param metadata Node metadata.
+     * @return Encoded metadata bytes.
      */
-    static std::vector<std::uint8_t> encode(const core::NodeMetadata &metadata)
+    [[nodiscard]] static std::vector<std::uint8_t>
+    encode(const core::NodeMetadata &metadata)
     {
-      const std::uint32_t node_id_size =
-          static_cast<std::uint32_t>(metadata.identity.node_id.size());
+      if (!metadata.is_valid())
+      {
+        return {};
+      }
 
-      const std::uint32_t display_name_size =
-          static_cast<std::uint32_t>(metadata.identity.display_name.size());
+      std::vector<std::uint8_t> buffer;
 
-      const std::uint32_t hostname_size =
-          static_cast<std::uint32_t>(metadata.runtime.hostname.size());
+      append_string(buffer, metadata.identity.node_id);
+      append_string(buffer, metadata.identity.display_name);
+      append_string(buffer, metadata.runtime.hostname);
+      append_string(buffer, metadata.runtime.os_name);
+      append_string(buffer, metadata.runtime.version);
 
-      const std::uint32_t os_name_size =
-          static_cast<std::uint32_t>(metadata.runtime.os_name.size());
+      store_utils::Serializer::append_i64(
+          buffer,
+          metadata.runtime.started_at.millis());
 
-      const std::uint32_t version_size =
-          static_cast<std::uint32_t>(metadata.runtime.version.size());
+      store_utils::Serializer::append_i64(
+          buffer,
+          metadata.runtime.uptime.millis());
 
-      const std::uint32_t capability_count =
-          static_cast<std::uint32_t>(metadata.capabilities.values.size());
-
-      const std::size_t total_size =
-          sizeof(std::uint32_t) + node_id_size +
-          sizeof(std::uint32_t) + display_name_size +
-          sizeof(std::uint32_t) + hostname_size +
-          sizeof(std::uint32_t) + os_name_size +
-          sizeof(std::uint32_t) + version_size +
-          sizeof(std::uint64_t) +
-          sizeof(std::uint64_t) +
-          sizeof(std::uint32_t) +
-          capability_count * sizeof(std::uint8_t);
-
-      std::vector<std::uint8_t> buffer(total_size);
-      std::size_t offset = 0;
-
-      write_string(buffer, offset, metadata.identity.node_id);
-      write_string(buffer, offset, metadata.identity.display_name);
-      write_string(buffer, offset, metadata.runtime.hostname);
-      write_string(buffer, offset, metadata.runtime.os_name);
-      write_string(buffer, offset, metadata.runtime.version);
-      write(buffer, offset, metadata.runtime.started_at);
-      write(buffer, offset, metadata.runtime.uptime_ms);
-      write_capabilities(buffer, offset, metadata.capabilities.values);
+      append_capabilities(buffer, metadata.capabilities.values);
 
       return buffer;
     }
 
   private:
-    template <typename T>
-    static void write(std::vector<std::uint8_t> &buffer,
-                      std::size_t &offset,
-                      T value)
+    /**
+     * @brief Appends a size-prefixed string.
+     *
+     * @param buffer Output buffer.
+     * @param value String value.
+     */
+    static void append_string(
+        std::vector<std::uint8_t> &buffer,
+        const std::string &value)
     {
-      std::memcpy(buffer.data() + offset, &value, sizeof(T));
-      offset += sizeof(T);
+      store_utils::Serializer::append_u32(
+          buffer,
+          static_cast<std::uint32_t>(value.size()));
+
+      buffer.insert(
+          buffer.end(),
+          value.begin(),
+          value.end());
     }
 
-    static void write_string(std::vector<std::uint8_t> &buffer,
-                             std::size_t &offset,
-                             const std::string &value)
+    /**
+     * @brief Appends metadata capabilities.
+     *
+     * Invalid capabilities are skipped.
+     *
+     * @param buffer Output buffer.
+     * @param values Capability list.
+     */
+    static void append_capabilities(
+        std::vector<std::uint8_t> &buffer,
+        const std::vector<types::CapabilityType> &values)
     {
-      const std::uint32_t size = static_cast<std::uint32_t>(value.size());
-      write(buffer, offset, size);
+      std::vector<types::CapabilityType> valid_values;
 
-      if (size > 0)
-      {
-        std::memcpy(buffer.data() + offset, value.data(), size);
-        offset += size;
-      }
-    }
-
-    static void write_capabilities(std::vector<std::uint8_t> &buffer,
-                                   std::size_t &offset,
-                                   const std::vector<types::CapabilityType> &values)
-    {
-      const std::uint32_t count = static_cast<std::uint32_t>(values.size());
-      write(buffer, offset, count);
+      valid_values.reserve(values.size());
 
       for (const auto capability : values)
       {
-        write(buffer, offset, static_cast<std::uint8_t>(capability));
+        if (types::is_valid(capability))
+        {
+          valid_values.push_back(capability);
+        }
+      }
+
+      store_utils::Serializer::append_u32(
+          buffer,
+          static_cast<std::uint32_t>(valid_values.size()));
+
+      for (const auto capability : valid_values)
+      {
+        buffer.push_back(
+            static_cast<std::uint8_t>(capability));
       }
     }
   };
 
 } // namespace softadastra::metadata::encoding
 
-#endif
+#endif // SOFTADASTRA_METADATA_ENCODER_HPP

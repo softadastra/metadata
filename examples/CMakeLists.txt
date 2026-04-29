@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 
 set(SOFTADASTRA_METADATA_EXAMPLES
-    metadata_encode_decode_demo
-    metadata_local_snapshot
-    metadata_registry_demo
     metadata_minimal
+    metadata_local_snapshot
+    metadata_encode_decode_demo
+    metadata_registry_demo
+    metadata_capabilities
+    metadata_registry_filter
+    metadata_custom_provider
+    metadata_service_demo
 )
 
 foreach(example_name IN LISTS SOFTADASTRA_METADATA_EXAMPLES)

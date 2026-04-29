@@ -1,16 +1,26 @@
-/*
- * MetadataEngine.hpp
+/**
+ *
+ *  @file MetadataEngine.hpp
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Softadastra.
+ *  All rights reserved.
+ *  https://github.com/softadastra/softadastra
+ *
+ *  Licensed under the Apache License, Version 2.0.
+ *
+ *  Softadastra Metadata
+ *
  */
 
 #ifndef SOFTADASTRA_METADATA_ENGINE_HPP
 #define SOFTADASTRA_METADATA_ENGINE_HPP
 
-#include <cstdint>
-#include <ctime>
 #include <optional>
-#include <stdexcept>
 #include <string>
+#include <utility>
 
+#include <softadastra/core/Core.hpp>
 #include <softadastra/metadata/backend/IMetadataProvider.hpp>
 #include <softadastra/metadata/core/MetadataContext.hpp>
 #include <softadastra/metadata/core/NodeCapabilities.hpp>
@@ -32,81 +42,141 @@ namespace softadastra::metadata::engine
   namespace metadata_types = softadastra::metadata::types;
   namespace metadata_utils = softadastra::metadata::utils;
 
+  namespace core_time = softadastra::core::time;
+
   /**
-   * @brief Orchestrates metadata creation, refresh, and registry storage
+   * @brief Orchestrates metadata creation, refresh, and registry storage.
+   *
+   * MetadataEngine is the high-level metadata facade.
    *
    * Responsibilities:
    * - build local node metadata
    * - refresh runtime metadata
    * - store local metadata in the registry
    * - expose the current local metadata snapshot
+   * - optionally use a custom metadata provider
+   *
+   * The engine does not own the MetadataContext.
+   * The optional provider is also not owned.
    */
-  class MetadataEngine
+  class MetadataEngine : public softadastra::core::types::NonCopyable
   {
   public:
-    explicit MetadataEngine(const metadata_core::MetadataContext &context,
-                            metadata_backend::IMetadataProvider *provider = nullptr)
+    /**
+     * @brief Creates a metadata engine.
+     *
+     * @param context Metadata context.
+     * @param provider Optional metadata provider.
+     */
+    explicit MetadataEngine(
+        const metadata_core::MetadataContext &context,
+        metadata_backend::IMetadataProvider *provider = nullptr) noexcept
         : context_(context),
           provider_(provider)
     {
-      if (!context_.valid())
-      {
-        throw std::runtime_error("MetadataEngine: invalid MetadataContext");
-      }
     }
 
     /**
-     * @brief Start the metadata engine
+     * @brief Stops the metadata engine on destruction.
+     */
+    ~MetadataEngine()
+    {
+      stop();
+    }
+
+    /**
+     * @brief Move constructor.
+     */
+    MetadataEngine(MetadataEngine &&) noexcept = default;
+
+    /**
+     * @brief Move assignment.
+     */
+    MetadataEngine &operator=(MetadataEngine &&) noexcept = default;
+
+    /**
+     * @brief Starts the metadata engine.
+     *
+     * @return true on success.
      */
     bool start()
     {
-      if (status_ == metadata_types::MetadataStatus::Running)
+      if (metadata_types::is_running(status_))
       {
         return true;
       }
 
+      if (!context_.is_valid())
+      {
+        status_ = metadata_types::MetadataStatus::Failed;
+        return false;
+      }
+
       status_ = metadata_types::MetadataStatus::Starting;
-      started_at_ = now_ms();
+      started_at_ = core_time::Timestamp::now();
 
       const auto refreshed = refresh_local();
 
-      if (!refreshed.has_value() || !refreshed->valid())
+      if (!refreshed.has_value() ||
+          !refreshed->is_valid())
       {
         status_ = metadata_types::MetadataStatus::Failed;
         return false;
       }
 
       status_ = metadata_types::MetadataStatus::Running;
+
       return true;
     }
 
     /**
-     * @brief Stop the metadata engine
+     * @brief Stops the metadata engine.
      */
     void stop()
     {
+      if (status_ == metadata_types::MetadataStatus::Stopped)
+      {
+        return;
+      }
+
       status_ = metadata_types::MetadataStatus::Stopping;
       status_ = metadata_types::MetadataStatus::Stopped;
     }
 
     /**
-     * @brief Return current engine status
+     * @brief Returns current engine status.
+     *
+     * @return Metadata status.
      */
-    metadata_types::MetadataStatus status() const noexcept
+    [[nodiscard]] metadata_types::MetadataStatus status() const noexcept
     {
       return status_;
     }
 
     /**
-     * @brief Return true if the engine is running
+     * @brief Returns true if the engine is running.
+     *
+     * @return true when running.
      */
-    bool running() const noexcept
+    [[nodiscard]] bool is_running() const noexcept
     {
-      return status_ == metadata_types::MetadataStatus::Running;
+      return metadata_types::is_running(status_);
     }
 
     /**
-     * @brief Build and refresh local metadata
+     * @brief Backward-compatible running alias.
+     *
+     * @return true when running.
+     */
+    [[nodiscard]] bool running() const noexcept
+    {
+      return is_running();
+    }
+
+    /**
+     * @brief Builds and refreshes local metadata.
+     *
+     * @return Refreshed local metadata, or std::nullopt.
      */
     std::optional<metadata_core::NodeMetadata> refresh_local()
     {
@@ -121,44 +191,61 @@ namespace softadastra::metadata::engine
         metadata = build_default_local_metadata();
       }
 
-      if (!metadata.has_value() || !metadata->valid())
+      if (!metadata.has_value() ||
+          !metadata->is_valid())
       {
         return std::nullopt;
       }
+
+      metadata->refresh_runtime();
 
       local_metadata_ = *metadata;
       registry_.upsert(*metadata);
-      last_refresh_at_ = now_ms();
+      last_refresh_at_ = core_time::Timestamp::now();
 
       return local_metadata_;
     }
 
     /**
-     * @brief Return the current local metadata snapshot
+     * @brief Returns the current local metadata snapshot.
+     *
+     * @return Local metadata, or std::nullopt.
      */
-    std::optional<metadata_core::NodeMetadata> local_metadata() const
+    [[nodiscard]] std::optional<metadata_core::NodeMetadata>
+    local_metadata() const
     {
       return local_metadata_;
     }
 
     /**
-     * @brief Return the local metadata, refreshing automatically when needed
+     * @brief Returns local metadata, refreshing automatically when needed.
+     *
+     * @return Local metadata, or std::nullopt.
      */
-    std::optional<metadata_core::NodeMetadata> local_metadata_or_refresh()
+    std::optional<metadata_core::NodeMetadata>
+    local_metadata_or_refresh()
     {
-      if (!running())
+      if (!is_running())
       {
         return std::nullopt;
       }
 
-      const auto &config = context_.config_ref();
+      auto config_result = context_.config_checked();
+
+      if (config_result.is_err())
+      {
+        return std::nullopt;
+      }
+
+      const auto &config = *config_result.value();
 
       if (!local_metadata_.has_value())
       {
         return refresh_local();
       }
 
-      if (config.auto_refresh && should_refresh(now_ms()))
+      if (config.auto_refresh &&
+          should_refresh(core_time::Timestamp::now()))
       {
         return refresh_local();
       }
@@ -167,11 +254,13 @@ namespace softadastra::metadata::engine
     }
 
     /**
-     * @brief Insert or replace metadata for one node
+     * @brief Inserts or replaces metadata for one node.
+     *
+     * @param metadata Node metadata.
      */
     void upsert(const metadata_core::NodeMetadata &metadata)
     {
-      if (!metadata.valid())
+      if (!metadata.is_valid())
       {
         return;
       }
@@ -180,11 +269,13 @@ namespace softadastra::metadata::engine
     }
 
     /**
-     * @brief Insert or replace metadata for one node by move
+     * @brief Inserts or replaces metadata for one node by move.
+     *
+     * @param metadata Node metadata.
      */
     void upsert(metadata_core::NodeMetadata &&metadata)
     {
-      if (!metadata.valid())
+      if (!metadata.is_valid())
       {
         return;
       }
@@ -193,23 +284,61 @@ namespace softadastra::metadata::engine
     }
 
     /**
-     * @brief Return read-only access to the registry
+     * @brief Returns read-only access to the registry.
+     *
+     * @return Metadata registry.
      */
-    const metadata_registry::MetadataRegistry &registry() const noexcept
+    [[nodiscard]] const metadata_registry::MetadataRegistry &
+    registry() const noexcept
     {
       return registry_;
     }
 
     /**
-     * @brief Return the local node id
+     * @brief Returns mutable access to the registry.
+     *
+     * @return Metadata registry.
      */
-    const std::string &node_id() const
+    [[nodiscard]] metadata_registry::MetadataRegistry &
+    registry() noexcept
     {
-      return context_.config_ref().node_id;
+      return registry_;
+    }
+
+    /**
+     * @brief Returns the local node id.
+     *
+     * @return Local node id.
+     */
+    [[nodiscard]] std::string node_id() const
+    {
+      auto config_result = context_.config_checked();
+
+      if (config_result.is_err())
+      {
+        return {};
+      }
+
+      return config_result.value()->node_id;
+    }
+
+    /**
+     * @brief Returns read-only access to context.
+     *
+     * @return Metadata context.
+     */
+    [[nodiscard]] const metadata_core::MetadataContext &
+    context() const noexcept
+    {
+      return context_;
     }
 
   private:
-    std::optional<metadata_core::NodeMetadata> build_default_local_metadata() const
+    /**
+     * @brief Builds default local metadata without a custom provider.
+     */
+    [[nodiscard]] std::optional<metadata_core::NodeMetadata>
+    build_default_local_metadata() const
     {
       metadata_core::NodeMetadata metadata;
 
@@ -217,7 +346,7 @@ namespace softadastra::metadata::engine
       metadata.runtime = build_runtime_info();
       metadata.capabilities = build_capabilities();
 
-      if (!metadata.valid())
+      if (!metadata.is_valid())
       {
         return std::nullopt;
       }
@@ -225,84 +354,111 @@ namespace softadastra::metadata::engine
       return metadata;
     }
 
-    metadata_core::NodeIdentity build_identity() const
+    /**
+     * @brief Builds local node identity from config.
+     */
+    [[nodiscard]] metadata_core::NodeIdentity build_identity() const
     {
-      metadata_core::NodeIdentity identity;
-      identity.node_id = context_.config_ref().node_id;
-      identity.display_name = context_.config_ref().display_name;
-      return identity;
+      auto config_result = context_.config_checked();
+
+      if (config_result.is_err())
+      {
+        return {};
+      }
+
+      const auto &config = *config_result.value();
+
+      return metadata_core::NodeIdentity{
+          config.node_id,
+          config.display_name};
     }
 
-    metadata_core::NodeRuntimeInfo build_runtime_info() const
+    /**
+     * @brief Builds local runtime information from platform utilities.
+     */
+    [[nodiscard]] metadata_core::NodeRuntimeInfo build_runtime_info() const
     {
-      metadata_core::NodeRuntimeInfo runtime;
-      runtime.hostname = metadata_utils::Hostname::get();
-      runtime.os_name = metadata_utils::PlatformInfo::os_name();
-      runtime.version = context_.config_ref().version.empty()
-                            ? metadata_utils::VersionInfo::current()
-                            : context_.config_ref().version;
-      runtime.started_at = started_at_;
-      runtime.uptime_ms = compute_uptime_ms();
+      auto config_result = context_.config_checked();
+
+      if (config_result.is_err())
+      {
+        return {};
+      }
+
+      const auto &config = *config_result.value();
+
+      const std::string version =
+          config.version.empty()
+              ? metadata_utils::VersionInfo::current()
+              : config.version;
+
+      metadata_core::NodeRuntimeInfo runtime{
+          metadata_utils::Hostname::get(),
+          metadata_utils::PlatformInfo::os_name(),
+          version};
+
+      runtime.started_at = started_at_.is_valid()
+                               ? started_at_
+                               : core_time::Timestamp::now();
+
+      runtime.refresh_uptime();
+
       return runtime;
     }
 
-    metadata_core::NodeCapabilities build_capabilities() const
+    /**
+     * @brief Builds default foundation capabilities.
+     */
+    [[nodiscard]] static metadata_core::NodeCapabilities
+    build_capabilities()
     {
-      metadata_core::NodeCapabilities capabilities;
-      capabilities.values = {
-          metadata_types::CapabilityType::Core,
-          metadata_types::CapabilityType::Fs,
-          metadata_types::CapabilityType::Wal,
-          metadata_types::CapabilityType::Store,
-          metadata_types::CapabilityType::Sync,
-          metadata_types::CapabilityType::Transport,
-          metadata_types::CapabilityType::Discovery,
-          metadata_types::CapabilityType::Metadata};
-      return capabilities;
+      return metadata_core::NodeCapabilities::foundation();
     }
 
-    bool should_refresh(std::uint64_t now) const noexcept
+    /**
+     * @brief Returns true if local metadata should be refreshed.
+     */
+    [[nodiscard]] bool should_refresh(
+        core_time::Timestamp now) const
     {
-      const auto &config = context_.config_ref();
+      auto config_result = context_.config_checked();
 
-      if (last_refresh_at_ == 0)
+      if (config_result.is_err() ||
+          !now.is_valid())
+      {
+        return false;
+      }
+
+      const auto &config = *config_result.value();
+
+      if (!last_refresh_at_.is_valid())
       {
         return true;
       }
 
-      return now > last_refresh_at_ &&
-             (now - last_refresh_at_) >= config.refresh_interval_ms;
-    }
-
-    std::uint64_t compute_uptime_ms() const noexcept
-    {
-      const std::uint64_t now = now_ms();
-
-      if (started_at_ == 0 || now < started_at_)
+      if (now.millis() < last_refresh_at_.millis())
       {
-        return 0;
+        return true;
       }
 
-      return now - started_at_;
-    }
-
-    static std::uint64_t now_ms()
-    {
-      return static_cast<std::uint64_t>(std::time(nullptr)) * 1000ULL;
+      return now.millis() - last_refresh_at_.millis() >=
+             config.refresh_interval.millis();
     }
 
   private:
     const metadata_core::MetadataContext &context_;
     metadata_backend::IMetadataProvider *provider_{nullptr};
 
-    metadata_registry::MetadataRegistry registry_;
-    std::optional<metadata_core::NodeMetadata> local_metadata_;
+    metadata_registry::MetadataRegistry registry_{};
+    std::optional<metadata_core::NodeMetadata> local_metadata_{};
 
-    metadata_types::MetadataStatus status_{metadata_types::MetadataStatus::Stopped};
-    std::uint64_t started_at_{0};
-    std::uint64_t last_refresh_at_{0};
+    metadata_types::MetadataStatus status_{
+        metadata_types::MetadataStatus::Stopped};
+
+    core_time::Timestamp started_at_{};
+    core_time::Timestamp last_refresh_at_{};
   };
 
 } // namespace softadastra::metadata::engine
 
-#endif
+#endif // SOFTADASTRA_METADATA_ENGINE_HPP

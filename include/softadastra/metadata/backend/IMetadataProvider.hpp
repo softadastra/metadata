@@ -1,5 +1,16 @@
-/*
- * IMetadataProvider.hpp
+/**
+ *
+ *  @file IMetadataProvider.hpp
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Softadastra.
+ *  All rights reserved.
+ *  https://github.com/softadastra/softadastra
+ *
+ *  Licensed under the Apache License, Version 2.0.
+ *
+ *  Softadastra Metadata
+ *
  */
 
 #ifndef SOFTADASTRA_METADATA_I_METADATA_PROVIDER_HPP
@@ -7,34 +18,69 @@
 
 #include <optional>
 
+#include <softadastra/core/Core.hpp>
 #include <softadastra/metadata/core/NodeMetadata.hpp>
 
 namespace softadastra::metadata::backend
 {
   namespace core = softadastra::metadata::core;
+  namespace core_types = softadastra::core::types;
 
   /**
-   * @brief Abstract metadata provider interface
+   * @brief Abstract metadata provider interface.
    *
-   * A provider is responsible for building or refreshing node metadata.
-   * It does not contain registry or engine orchestration logic.
+   * IMetadataProvider defines the provider contract used by the metadata
+   * engine.
+   *
+   * A provider is responsible for:
+   * - building local node metadata
+   * - returning local metadata snapshots
+   * - refreshing runtime metadata
+   *
+   * It must not contain registry orchestration logic.
+   * It must not contain discovery integration logic.
    */
-  class IMetadataProvider
+  class IMetadataProvider : public core_types::NonCopyable
   {
   public:
+    /**
+     * @brief Default virtual destructor.
+     */
     virtual ~IMetadataProvider() = default;
 
     /**
-     * @brief Return a snapshot of local node metadata
+     * @brief Move constructor.
      */
-    virtual std::optional<core::NodeMetadata> local_metadata() const = 0;
+    IMetadataProvider(IMetadataProvider &&) noexcept = default;
 
     /**
-     * @brief Refresh and return local node metadata
+     * @brief Move assignment.
      */
-    virtual std::optional<core::NodeMetadata> refresh_local_metadata() = 0;
+    IMetadataProvider &operator=(IMetadataProvider &&) noexcept = default;
+
+    /**
+     * @brief Returns a snapshot of local node metadata.
+     *
+     * @return Local node metadata, or std::nullopt when unavailable.
+     */
+    [[nodiscard]] virtual std::optional<core::NodeMetadata>
+    local_metadata() const = 0;
+
+    /**
+     * @brief Refreshes and returns local node metadata.
+     *
+     * @return Refreshed local node metadata, or std::nullopt when unavailable.
+     */
+    [[nodiscard]] virtual std::optional<core::NodeMetadata>
+    refresh_local_metadata() = 0;
+
+  protected:
+    /**
+     * @brief Protected default constructor.
+     */
+    IMetadataProvider() = default;
   };
 
 } // namespace softadastra::metadata::backend
 
-#endif
+#endif // SOFTADASTRA_METADATA_I_METADATA_PROVIDER_HPP

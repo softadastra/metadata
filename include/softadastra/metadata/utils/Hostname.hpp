@@ -1,10 +1,22 @@
-/*
- * Hostname.hpp
+/**
+ *
+ *  @file Hostname.hpp
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Softadastra.
+ *  All rights reserved.
+ *  https://github.com/softadastra/softadastra
+ *
+ *  Licensed under the Apache License, Version 2.0.
+ *
+ *  Softadastra Metadata
+ *
  */
 
 #ifndef SOFTADASTRA_METADATA_HOSTNAME_HPP
 #define SOFTADASTRA_METADATA_HOSTNAME_HPP
 
+#include <array>
 #include <string>
 
 #if defined(_WIN32)
@@ -15,37 +27,65 @@
 
 namespace softadastra::metadata::utils
 {
+
+  /**
+   * @brief Utility for reading the local hostname.
+   *
+   * Hostname provides a small cross-platform helper around gethostname().
+   */
   class Hostname
   {
   public:
     /**
-     * @brief Return the local hostname when available
+     * @brief Fallback hostname used when the system hostname is unavailable.
      */
-    static std::string get()
+    static constexpr const char *fallback = "unknown-host";
+
+    /**
+     * @brief Returns the local hostname when available.
+     *
+     * @return Local hostname, or fallback when unavailable.
+     */
+    [[nodiscard]] static std::string get()
     {
-      char buffer[256] = {0};
+      std::array<char, 256> buffer{};
 
 #if defined(_WIN32)
-      if (::gethostname(buffer, static_cast<int>(sizeof(buffer))) != 0)
-      {
-        return "unknown-host";
-      }
+      const int result =
+          ::gethostname(
+              buffer.data(),
+              static_cast<int>(buffer.size()));
 #else
-      if (::gethostname(buffer, sizeof(buffer)) != 0)
-      {
-        return "unknown-host";
-      }
+      const int result =
+          ::gethostname(
+              buffer.data(),
+              buffer.size());
 #endif
 
-      if (buffer[0] == '\0')
+      if (result != 0 || buffer[0] == '\0')
       {
-        return "unknown-host";
+        return fallback;
       }
 
-      return std::string(buffer);
+      buffer.back() = '\0';
+
+      return std::string{buffer.data()};
+    }
+
+    /**
+     * @brief Returns true if the hostname is usable.
+     *
+     * @param value Hostname value.
+     * @return true when non-empty and not equal to fallback.
+     */
+    [[nodiscard]] static bool is_valid(
+        const std::string &value) noexcept
+    {
+      return !value.empty() &&
+             value != fallback;
     }
   };
 
 } // namespace softadastra::metadata::utils
 
-#endif
+#endif // SOFTADASTRA_METADATA_HOSTNAME_HPP

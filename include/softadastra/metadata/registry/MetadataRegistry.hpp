@@ -1,5 +1,16 @@
-/*
- * MetadataRegistry.hpp
+/**
+ *
+ *  @file MetadataRegistry.hpp
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Softadastra.
+ *  All rights reserved.
+ *  https://github.com/softadastra/softadastra
+ *
+ *  Licensed under the Apache License, Version 2.0.
+ *
+ *  Softadastra Metadata
+ *
  */
 
 #ifndef SOFTADASTRA_METADATA_REGISTRY_HPP
@@ -9,50 +20,101 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <softadastra/metadata/core/NodeMetadata.hpp>
+#include <softadastra/metadata/types/CapabilityType.hpp>
 
 namespace softadastra::metadata::registry
 {
   namespace core = softadastra::metadata::core;
+  namespace types = softadastra::metadata::types;
 
   /**
-   * @brief In-memory registry of known node metadata
+   * @brief In-memory registry of known node metadata.
+   *
+   * MetadataRegistry stores NodeMetadata indexed by node id.
+   *
+   * This first version is intentionally simple:
+   * - in-memory only
+   * - unordered_map-backed
+   * - node_id as stable key
+   *
+   * It does not perform network I/O.
+   * It only stores and exposes metadata snapshots.
    */
   class MetadataRegistry
   {
   public:
     /**
-     * @brief Insert or replace node metadata
+     * @brief Internal registry map type.
+     */
+    using Map = std::unordered_map<std::string, core::NodeMetadata>;
+
+    /**
+     * @brief Creates an empty metadata registry.
+     */
+    MetadataRegistry() = default;
+
+    /**
+     * @brief Inserts or replaces node metadata.
+     *
+     * Invalid metadata is ignored.
+     *
+     * @param metadata Node metadata.
      */
     void upsert(const core::NodeMetadata &metadata)
     {
-      registry_[metadata.identity.node_id] = metadata;
+      if (!metadata.is_valid())
+      {
+        return;
+      }
+
+      registry_[metadata.node_id()] = metadata;
     }
 
     /**
-     * @brief Insert or replace node metadata by move
+     * @brief Inserts or replaces node metadata by move.
+     *
+     * Invalid metadata is ignored.
+     *
+     * @param metadata Node metadata.
      */
     void upsert(core::NodeMetadata &&metadata)
     {
-      registry_[metadata.identity.node_id] = std::move(metadata);
+      if (!metadata.is_valid())
+      {
+        return;
+      }
+
+      const auto key = metadata.node_id();
+
+      registry_[key] = std::move(metadata);
     }
 
     /**
-     * @brief Return true if metadata exists for the given node id
+     * @brief Returns true if metadata exists for the given node id.
+     *
+     * @param node_id Node id.
+     * @return true if found.
      */
-    bool contains(const std::string &node_id) const
+    [[nodiscard]] bool contains(const std::string &node_id) const
     {
       return registry_.find(node_id) != registry_.end();
     }
 
     /**
-     * @brief Get node metadata copy
+     * @brief Gets node metadata by copy.
+     *
+     * @param node_id Node id.
+     * @return Node metadata if found, std::nullopt otherwise.
      */
-    std::optional<core::NodeMetadata> get(const std::string &node_id) const
+    [[nodiscard]] std::optional<core::NodeMetadata>
+    get(const std::string &node_id) const
     {
-      auto it = registry_.find(node_id);
+      const auto it = registry_.find(node_id);
+
       if (it == registry_.end())
       {
         return std::nullopt;
@@ -62,7 +124,48 @@ namespace softadastra::metadata::registry
     }
 
     /**
-     * @brief Remove metadata by node id
+     * @brief Finds node metadata without copying.
+     *
+     * @param node_id Node id.
+     * @return NodeMetadata pointer, or nullptr.
+     */
+    [[nodiscard]] core::NodeMetadata *
+    find(const std::string &node_id) noexcept
+    {
+      const auto it = registry_.find(node_id);
+
+      if (it == registry_.end())
+      {
+        return nullptr;
+      }
+
+      return &it->second;
+    }
+
+    /**
+     * @brief Finds node metadata without copying.
+     *
+     * @param node_id Node id.
+     * @return NodeMetadata pointer, or nullptr.
+     */
+    [[nodiscard]] const core::NodeMetadata *
+    find(const std::string &node_id) const noexcept
+    {
+      const auto it = registry_.find(node_id);
+
+      if (it == registry_.end())
+      {
+        return nullptr;
+      }
+
+      return &it->second;
+    }
+
+    /**
+     * @brief Removes metadata by node id.
+     *
+     * @param node_id Node id.
+     * @return true if metadata was removed.
      */
     bool erase(const std::string &node_id)
     {
@@ -70,33 +173,49 @@ namespace softadastra::metadata::registry
     }
 
     /**
-     * @brief Number of registered metadata entries
+     * @brief Returns number of registered metadata entries.
+     *
+     * @return Metadata count.
      */
-    std::size_t size() const noexcept
+    [[nodiscard]] std::size_t size() const noexcept
     {
       return registry_.size();
     }
 
     /**
-     * @brief Return true if registry is empty
+     * @brief Returns true if registry is empty.
+     *
+     * @return true when empty.
      */
-    bool empty() const noexcept
+    [[nodiscard]] bool empty() const noexcept
     {
       return registry_.empty();
     }
 
     /**
-     * @brief Remove all metadata entries
+     * @brief Removes all metadata entries.
      */
-    void clear()
+    void clear() noexcept
     {
       registry_.clear();
     }
 
     /**
-     * @brief Return all node metadata entries
+     * @brief Returns read-only access to internal entries.
+     *
+     * @return Metadata map.
      */
-    std::vector<core::NodeMetadata> all() const
+    [[nodiscard]] const Map &entries() const noexcept
+    {
+      return registry_;
+    }
+
+    /**
+     * @brief Returns all node metadata entries.
+     *
+     * @return Metadata entries.
+     */
+    [[nodiscard]] std::vector<core::NodeMetadata> all() const
     {
       std::vector<core::NodeMetadata> result;
       result.reserve(registry_.size());
@@ -109,10 +228,90 @@ namespace softadastra::metadata::registry
       return result;
     }
 
+    /**
+     * @brief Returns metadata entries matching a capability.
+     *
+     * @param capability Capability to filter by.
+     * @return Metadata entries.
+     */
+    [[nodiscard]] std::vector<core::NodeMetadata>
+    with_capability(types::CapabilityType capability) const
+    {
+      std::vector<core::NodeMetadata> result;
+
+      if (!types::is_valid(capability))
+      {
+        return result;
+      }
+
+      for (const auto &[_, metadata] : registry_)
+      {
+        if (metadata.has_capability(capability))
+        {
+          result.push_back(metadata);
+        }
+      }
+
+      return result;
+    }
+
+    /**
+     * @brief Returns metadata entries exposing foundation capabilities.
+     *
+     * @return Metadata entries.
+     */
+    [[nodiscard]] std::vector<core::NodeMetadata>
+    foundation_nodes() const
+    {
+      std::vector<core::NodeMetadata> result;
+
+      for (const auto &[_, metadata] : registry_)
+      {
+        if (metadata.capabilities.has_foundation_capability())
+        {
+          result.push_back(metadata);
+        }
+      }
+
+      return result;
+    }
+
+    /**
+     * @brief Returns metadata entries exposing user-facing capabilities.
+     *
+     * @return Metadata entries.
+     */
+    [[nodiscard]] std::vector<core::NodeMetadata>
+    user_facing_nodes() const
+    {
+      std::vector<core::NodeMetadata> result;
+
+      for (const auto &[_, metadata] : registry_)
+      {
+        if (metadata.capabilities.has_user_facing_capability())
+        {
+          result.push_back(metadata);
+        }
+      }
+
+      return result;
+    }
+
+    /**
+     * @brief Refreshes runtime data for all stored metadata entries.
+     */
+    void refresh_all_runtime() noexcept
+    {
+      for (auto &[_, metadata] : registry_)
+      {
+        metadata.refresh_runtime();
+      }
+    }
+
   private:
-    std::unordered_map<std::string, core::NodeMetadata> registry_;
+    Map registry_{};
   };
 
 } // namespace softadastra::metadata::registry
 
-#endif
+#endif // SOFTADASTRA_METADATA_REGISTRY_HPP
