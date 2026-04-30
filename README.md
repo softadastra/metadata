@@ -8,13 +8,11 @@ It exposes node identity, runtime information, capabilities, version information
 
 The core rule is:
 
-> Metadata describes nodes. Discovery finds nodes. Transport connects nodes.
+> *Metadata describes nodes. Discovery finds nodes. Transport connects nodes.*
 
 ## Purpose
 
-Softadastra is built around local-first and offline-first systems.
-
-In that architecture, each node needs a clear description of itself:
+Softadastra is built around local-first and offline-first systems. Each node needs a clear description of itself:
 
 - who it is
 - what version it runs
@@ -23,9 +21,7 @@ In that architecture, each node needs a clear description of itself:
 - when it started
 - how long it has been running
 
-The metadata module provides this description.
-
-It helps Softadastra:
+The metadata module provides this description. It helps Softadastra:
 
 - build local node metadata
 - refresh runtime metadata
@@ -40,47 +36,31 @@ It helps Softadastra:
 
 `softadastra/metadata` provides:
 
-- metadata status types
-- capability types
+- metadata status types and capability types
 - metadata field identifiers
-- node identity
-- node runtime information
-- node capabilities
+- node identity, runtime information, and capabilities
 - complete node metadata
-- metadata configuration
-- metadata context
+- metadata configuration and context
 - metadata provider interface
 - metadata encoder and decoder
-- metadata registry
-- metadata engine
-- metadata service
-- platform utilities
-- hostname utility
-- version utility
+- metadata registry, engine, and service
+- platform utilities (hostname, version, OS info)
 
-## What this module does not do
-
-This module does not implement:
+## What this module does NOT do
 
 - WAL persistence
 - store mutation
 - sync propagation
 - transport delivery
 - peer discovery
-- conflict resolution
-- distributed consensus
-- encryption
-- authentication
-
-Those belong to other Softadastra modules.
+- conflict resolution or distributed consensus
+- encryption or authentication
 
 ## Design Principles
 
 ### Metadata is descriptive
 
-Metadata does not mutate application state.
-
-It only describes a node and its runtime environment.
+Metadata does not mutate application state. It only describes a node and its runtime environment.
 
 ### Metadata is local-first
 
@@ -92,44 +72,52 @@ Metadata can be inspected, encoded, decoded, stored, and filtered.
 
 ### Metadata is capability-oriented
 
-Nodes declare what they support through `NodeCapabilities`.
+Nodes declare what they support through `NodeCapabilities`, enabling queries like:
 
-This makes it possible to ask questions like:
-
-```text
+```
 Which nodes support Sync?
 Which nodes expose user-facing apps?
 Which nodes are foundation nodes?
-Layering
-WAL        -> durable operation log
-Store      -> local state
-Sync       -> operation propagation
-Transport  -> peer message delivery
-Discovery  -> peer discovery
-Metadata   -> node description
+```
 
-Metadata complements discovery.
+### Layering
 
-Discovery finds a node.
+```
+WAL        →  durable operation log
+Store      →  local state
+Sync       →  operation propagation
+Transport  →  peer message delivery
+Discovery  →  peer discovery
+Metadata   →  node description
+```
 
-Metadata explains what that node is.
+> Discovery finds a node. Metadata explains what that node is.
 
-Installation
+## Installation
+
+```bash
 vix add @softadastra/metadata
-Main Header
+```
 
-Use the public aggregator:
+### Main header
 
+```cpp
 #include <softadastra/metadata/Metadata.hpp>
+```
 
 For full integration:
 
+```cpp
 #include <softadastra/store/Store.hpp>
 #include <softadastra/sync/Sync.hpp>
 #include <softadastra/transport/Transport.hpp>
 #include <softadastra/discovery/Discovery.hpp>
 #include <softadastra/metadata/Metadata.hpp>
-Module Structure
+```
+
+## Module Structure
+
+```
 include/softadastra/metadata/
 ├── backend/
 │   └── IMetadataProvider.hpp
@@ -158,538 +146,389 @@ include/softadastra/metadata/
 ├── Metadata.hpp
 ├── MetadataOptions.hpp
 └── MetadataService.hpp
-Core Concepts
-CapabilityType
+```
 
-CapabilityType describes what a node supports.
+## Core Concepts
 
-metadata::types::CapabilityType::Core
-metadata::types::CapabilityType::Fs
-metadata::types::CapabilityType::Wal
-metadata::types::CapabilityType::Store
-metadata::types::CapabilityType::Sync
-metadata::types::CapabilityType::Transport
-metadata::types::CapabilityType::Discovery
-metadata::types::CapabilityType::Metadata
-metadata::types::CapabilityType::App
-metadata::types::CapabilityType::Cli
+### `CapabilityType`
+
+Describes what a node supports:
+
+- `metadata::types::CapabilityType::Core`
+- `metadata::types::CapabilityType::Fs`
+- `metadata::types::CapabilityType::Wal`
+- `metadata::types::CapabilityType::Store`
+- `metadata::types::CapabilityType::Sync`
+- `metadata::types::CapabilityType::Transport`
+- `metadata::types::CapabilityType::Discovery`
+- `metadata::types::CapabilityType::Metadata`
+- `metadata::types::CapabilityType::App`
+- `metadata::types::CapabilityType::Cli`
 
 Helpers:
 
+```cpp
 metadata::types::to_string(capability);
 metadata::types::is_valid(capability);
 metadata::types::is_foundation(capability);
 metadata::types::is_user_facing(capability);
-MetadataField
+```
 
-MetadataField identifies logical fields in NodeMetadata.
+### `MetadataField`
 
-metadata::types::MetadataField::NodeId
-metadata::types::MetadataField::DisplayName
-metadata::types::MetadataField::Hostname
-metadata::types::MetadataField::OsName
-metadata::types::MetadataField::Version
-metadata::types::MetadataField::StartedAt
-metadata::types::MetadataField::UptimeMs
-metadata::types::MetadataField::Capabilities
+Identifies logical fields in `NodeMetadata`:
+
+- `NodeId`, `DisplayName`, `Hostname`, `OsName`, `Version`
+- `StartedAt`, `UptimeMs`, `Capabilities`
 
 Helpers:
 
+```cpp
 metadata::types::to_string(field);
 metadata::types::is_valid(field);
 metadata::types::is_identity_field(field);
 metadata::types::is_runtime_field(field);
-MetadataStatus
+```
 
-The metadata engine can be:
+### `MetadataStatus`
 
-metadata::types::MetadataStatus::Stopped
-metadata::types::MetadataStatus::Starting
-metadata::types::MetadataStatus::Running
-metadata::types::MetadataStatus::Stopping
-metadata::types::MetadataStatus::Failed
+- `Stopped`, `Starting`, `Running`, `Stopping`, `Failed`
 
 Helpers:
 
+```cpp
 metadata::types::to_string(status);
 metadata::types::is_valid(status);
 metadata::types::is_running(status);
 metadata::types::is_transitioning(status);
 metadata::types::is_terminal(status);
-MetadataConfig
+```
 
-MetadataConfig is the low-level runtime configuration.
+## `MetadataConfig`
 
-auto config =
-    metadata::core::MetadataConfig::local(
-        "node-a",
-        "1.0.0");
+Low-level runtime configuration. Contains: `node_id`, `display_name`, `version`, `auto_refresh`, `refresh_interval`.
 
-It contains:
+```cpp
+auto config = metadata::core::MetadataConfig::local("node-a", "1.0.0");
 
-node_id
-display_name
-version
-auto_refresh
-refresh_interval
-
-Customize refresh interval:
-
-config.refresh_interval =
-    core::time::Duration::from_seconds(5);
-
-Validate:
+config.refresh_interval = core::time::Duration::from_seconds(5);
 
 if (!config.is_valid())
 {
-  return 1;
+    return 1;
 }
 
-Backward-compatible alias:
-
+// Backward-compatible alias
 config.valid();
-MetadataOptions
+```
 
-MetadataOptions is the user-facing configuration used by MetadataService.
+## `MetadataOptions`
 
-auto options =
-    metadata::MetadataOptions::local(
-        "node-a",
-        "1.0.0");
+User-facing configuration used by `MetadataService`.
 
-Convert to core config:
+```cpp
+auto options = metadata::MetadataOptions::local("node-a", "1.0.0");
 
-auto config =
-    options.to_config();
-
-Validate:
+auto config = options.to_config();
 
 if (!options.is_valid())
 {
-  return 1;
+    return 1;
 }
 
-Backward-compatible alias:
-
+// Backward-compatible alias
 options.valid();
-NodeIdentity
+```
 
-NodeIdentity stores stable node identity.
+## `NodeIdentity`
 
-metadata::core::NodeIdentity identity{
-    "node-a",
-    "Node A"};
+Stores stable node identity.
 
-Local helper:
+```cpp
+metadata::core::NodeIdentity identity{"node-a", "Node A"};
 
-auto identity =
-    metadata::core::NodeIdentity::local("node-a");
+// Local helper
+auto identity = metadata::core::NodeIdentity::local("node-a");
 
-Access label:
-
-auto label =
-    identity.label();
-
-Validate:
+auto label = identity.label();
 
 if (!identity.is_valid())
 {
-  return 1;
+    return 1;
 }
-NodeRuntimeInfo
+```
 
-NodeRuntimeInfo describes runtime state.
+## `NodeRuntimeInfo`
 
+Describes runtime state.
+
+```cpp
 metadata::core::NodeRuntimeInfo runtime{
     metadata::utils::Hostname::get(),
     metadata::utils::PlatformInfo::os_name(),
     metadata::utils::VersionInfo::current()};
 
-Refresh uptime:
-
 runtime.refresh_uptime();
 
-Read uptime:
-
-auto uptime_ms =
-    runtime.uptime_ms();
-
-Reset start time:
+auto uptime_ms = runtime.uptime_ms();
 
 runtime.reset_start_time();
 
-Validate:
-
 if (!runtime.is_valid())
 {
-  return 1;
+    return 1;
 }
-NodeCapabilities
+```
 
-NodeCapabilities stores supported capabilities.
+## `NodeCapabilities`
 
+Stores supported capabilities.
+
+```cpp
 metadata::core::NodeCapabilities capabilities;
 
 capabilities.add(metadata::types::CapabilityType::Core);
 capabilities.add(metadata::types::CapabilityType::Store);
 capabilities.add(metadata::types::CapabilityType::Sync);
 
-Foundation capabilities:
+// Presets
+auto capabilities = metadata::core::NodeCapabilities::foundation();
+auto capabilities = metadata::core::NodeCapabilities::minimal();
 
-auto capabilities =
-    metadata::core::NodeCapabilities::foundation();
-
-Minimal capabilities:
-
-auto capabilities =
-    metadata::core::NodeCapabilities::minimal();
-
-Check capabilities:
-
+// Check
 capabilities.has(metadata::types::CapabilityType::Sync);
 capabilities.has_foundation_capability();
 capabilities.has_user_facing_capability();
 
-Remove a capability:
-
+// Remove
 capabilities.remove(metadata::types::CapabilityType::Sync);
-NodeMetadata
+```
 
-NodeMetadata is the complete metadata object.
+## `NodeMetadata`
 
-It combines:
+The complete metadata object. Combines `NodeIdentity`, `NodeRuntimeInfo`, and `NodeCapabilities`.
 
-NodeIdentity
-NodeRuntimeInfo
-NodeCapabilities
+```cpp
+// Foundation metadata
+auto metadata_snapshot = metadata::core::NodeMetadata::foundation(
+    "node-a",
+    metadata::utils::Hostname::get(),
+    metadata::utils::PlatformInfo::os_name(),
+    "1.0.0");
 
-Create foundation metadata:
-
-auto metadata_snapshot =
-    metadata::core::NodeMetadata::foundation(
-        "node-a",
-        metadata::utils::Hostname::get(),
-        metadata::utils::PlatformInfo::os_name(),
-        "1.0.0");
-
-Create minimal metadata:
-
-auto metadata_snapshot =
-    metadata::core::NodeMetadata::minimal(
-        "node-a",
-        "host-a",
-        "linux",
-        "1.0.0");
-
-Access node id:
+// Minimal metadata
+auto metadata_snapshot = metadata::core::NodeMetadata::minimal(
+    "node-a", "host-a", "linux", "1.0.0");
 
 metadata_snapshot.node_id();
-
-Access label:
-
 metadata_snapshot.label();
-
-Check capability:
-
-metadata_snapshot.has_capability(
-    metadata::types::CapabilityType::Sync);
-
-Refresh runtime:
-
+metadata_snapshot.has_capability(metadata::types::CapabilityType::Sync);
 metadata_snapshot.refresh_runtime();
-
-Validate:
 
 if (!metadata_snapshot.is_valid())
 {
-  return 1;
+    return 1;
 }
-Encoding and Decoding
+```
 
-Encode metadata:
+## Encoding and Decoding
 
-auto encoded =
-    metadata::encoding::MetadataEncoder::encode(metadata_snapshot);
+```cpp
+// Encode
+auto encoded = metadata::encoding::MetadataEncoder::encode(metadata_snapshot);
 
-Decode metadata:
-
-auto decoded =
-    metadata::encoding::MetadataDecoder::decode(encoded);
+// Decode
+auto decoded = metadata::encoding::MetadataDecoder::decode(encoded);
 
 if (decoded.has_value())
 {
-  auto node_id = decoded->node_id();
+    auto node_id = decoded->node_id();
 }
+```
 
 Payload format:
 
-uint32 node_id_size
-bytes  node_id
-uint32 display_name_size
-bytes  display_name
-uint32 hostname_size
-bytes  hostname
-uint32 os_name_size
-bytes  os_name
-uint32 version_size
-bytes  version
-int64  started_at_millis
-int64  uptime_millis
-uint32 capability_count
-uint8  capability_0
-uint8  capability_1
+```
+uint32  node_id_size
+bytes   node_id
+uint32  display_name_size
+bytes   display_name
+uint32  hostname_size
+bytes   hostname
+uint32  os_name_size
+bytes   os_name
+uint32  version_size
+bytes   version
+int64   started_at_millis
+int64   uptime_millis
+uint32  capability_count
+uint8   capability_0
+uint8   capability_1
 ...
-MetadataRegistry
+```
 
-MetadataRegistry stores known node metadata in memory.
+## `MetadataRegistry`
 
+Stores known node metadata in memory.
+
+```cpp
 metadata::registry::MetadataRegistry registry;
 
 registry.upsert(metadata_snapshot);
 
-Get metadata:
+// Get
+auto found = registry.get("node-a");
 
-auto found =
-    registry.get("node-a");
-
-Find without copying:
-
-auto *entry =
-    registry.find("node-a");
+// Find without copying
+auto *entry = registry.find("node-a");
 
 if (entry != nullptr)
 {
-  entry->refresh_runtime();
+    entry->refresh_runtime();
 }
 
-Filter by capability:
+// Filter
+auto sync_nodes      = registry.with_capability(metadata::types::CapabilityType::Sync);
+auto foundation_nodes = registry.foundation_nodes();
+auto app_nodes       = registry.user_facing_nodes();
 
-auto sync_nodes =
-    registry.with_capability(
-        metadata::types::CapabilityType::Sync);
-
-Foundation nodes:
-
-auto foundation_nodes =
-    registry.foundation_nodes();
-
-User-facing nodes:
-
-auto app_nodes =
-    registry.user_facing_nodes();
-
-Refresh all runtime values:
-
+// Refresh all
 registry.refresh_all_runtime();
-IMetadataProvider
+```
 
-IMetadataProvider defines the custom provider interface.
+## `IMetadataProvider`
 
-A provider can build local metadata from custom sources.
+Custom provider interface.
 
-class MyProvider final
-    : public metadata::backend::IMetadataProvider
+```cpp
+class MyProvider final : public metadata::backend::IMetadataProvider
 {
 public:
-  std::optional<metadata::core::NodeMetadata>
-  local_metadata() const override
-  {
-    return metadata_;
-  }
+    std::optional<metadata::core::NodeMetadata>
+    local_metadata() const override
+    {
+        return metadata_;
+    }
 
-  std::optional<metadata::core::NodeMetadata>
-  refresh_local_metadata() override
-  {
-    metadata_ =
-        metadata::core::NodeMetadata::foundation(
-            "custom-node",
-            "custom-host",
-            "linux",
-            "1.0.0");
+    std::optional<metadata::core::NodeMetadata>
+    refresh_local_metadata() override
+    {
+        metadata_ = metadata::core::NodeMetadata::foundation(
+            "custom-node", "custom-host", "linux", "1.0.0");
 
-    metadata_->refresh_runtime();
+        metadata_->refresh_runtime();
 
-    return metadata_;
-  }
+        return metadata_;
+    }
 
 private:
-  std::optional<metadata::core::NodeMetadata> metadata_;
+    std::optional<metadata::core::NodeMetadata> metadata_;
 };
-MetadataContext
+```
 
-MetadataContext connects metadata to discovery.
+## `MetadataContext`
 
-metadata::core::MetadataContext context{
-    metadata_config,
-    discovery_engine};
+Connects metadata to discovery.
 
-Validate:
+```cpp
+metadata::core::MetadataContext context{metadata_config, discovery_engine};
 
 if (!context.is_valid())
 {
-  return 1;
+    return 1;
 }
 
-Checked access:
+auto config    = context.config_checked();
+auto discovery = context.discovery_checked();
+```
 
-auto config =
-    context.config_checked();
+## `MetadataEngine`
 
-auto discovery =
-    context.discovery_checked();
-MetadataEngine
+The high-level metadata facade. Coordinates: local metadata creation, runtime refresh, registry storage, and optional custom provider usage.
 
-MetadataEngine is the high-level metadata facade.
+```cpp
+auto metadata_config = metadata::core::MetadataConfig::local("node-a", "1.0.0");
 
-It coordinates:
+metadata::core::MetadataContext metadata_context{metadata_config, discovery_engine};
 
-local metadata creation
-runtime refresh
-registry storage
-optional custom provider usage
-
-Create an engine:
-
-metadata::core::MetadataConfig metadata_config =
-    metadata::core::MetadataConfig::local(
-        "node-a",
-        "1.0.0");
-
-metadata::core::MetadataContext metadata_context{
-    metadata_config,
-    discovery_engine};
-
-metadata::engine::MetadataEngine metadata_engine{
-    metadata_context};
-
-Start:
+metadata::engine::MetadataEngine metadata_engine{metadata_context};
 
 if (!metadata_engine.start())
 {
-  return 1;
+    return 1;
 }
 
-Refresh local metadata:
+auto local = metadata_engine.refresh_local();
+auto local = metadata_engine.local_metadata();
+auto local = metadata_engine.local_metadata_or_refresh();
 
-auto local =
-    metadata_engine.refresh_local();
-
-Get current local snapshot:
-
-auto local =
-    metadata_engine.local_metadata();
-
-Auto-refresh when needed:
-
-auto local =
-    metadata_engine.local_metadata_or_refresh();
-
-Access registry:
-
-auto all =
-    metadata_engine.registry().all();
-
-Stop:
+auto all = metadata_engine.registry().all();
 
 metadata_engine.stop();
-MetadataService
+```
 
-MetadataService is the simple user-facing wrapper.
+## `MetadataService`
 
-It owns:
+The simple user-facing wrapper. Owns: `MetadataOptions`, `MetadataConfig`, `MetadataContext`, `MetadataEngine`. Does **not** own `DiscoveryEngine` — the discovery engine must outlive the metadata service.
 
-MetadataOptions
-MetadataConfig
-MetadataContext
-MetadataEngine
+```cpp
+auto options = metadata::MetadataOptions::local("node-a", "1.0.0");
 
-It does not own DiscoveryEngine.
-
-The discovery engine must outlive the metadata service.
-
-auto options =
-    metadata::MetadataOptions::local(
-        "node-a",
-        "1.0.0");
-
-metadata::MetadataService service{
-    options,
-    discovery_engine};
-
-Start:
+metadata::MetadataService service{options, discovery_engine};
 
 if (!service.start())
 {
-  return 1;
+    return 1;
 }
 
-Get local metadata:
+auto local     = service.local();
+auto refreshed = service.refresh();
+auto local     = service.local_or_refresh();
 
-auto local =
-    service.local();
-
-Refresh:
-
-auto refreshed =
-    service.refresh();
-
-Auto-refresh:
-
-auto local =
-    service.local_or_refresh();
-
-Get metadata by node id:
-
-auto node =
-    service.get("node-a");
-
-List all metadata:
-
-auto entries =
-    service.all();
-
-Filter by capability:
-
-auto sync_nodes =
-    service.with_capability(
-        metadata::types::CapabilityType::Sync);
-
-Stop:
+auto node       = service.get("node-a");
+auto entries    = service.all();
+auto sync_nodes = service.with_capability(metadata::types::CapabilityType::Sync);
 
 service.stop();
-Utilities
-Hostname
-auto hostname =
-    metadata::utils::Hostname::get();
+```
+
+## Utilities
+
+### `Hostname`
+
+```cpp
+auto hostname = metadata::utils::Hostname::get();
 
 if (metadata::utils::Hostname::is_valid(hostname))
 {
-  // usable hostname
+    // usable hostname
 }
-PlatformInfo
-auto os =
-    metadata::utils::PlatformInfo::os_name();
+```
 
-auto compiler =
-    metadata::utils::PlatformInfo::compiler_name();
+### `PlatformInfo`
 
-auto architecture =
-    metadata::utils::PlatformInfo::architecture();
+```cpp
+auto os           = metadata::utils::PlatformInfo::os_name();
+auto compiler     = metadata::utils::PlatformInfo::compiler_name();
+auto architecture = metadata::utils::PlatformInfo::architecture();
+auto build_mode   = metadata::utils::PlatformInfo::build_mode();
+auto summary      = metadata::utils::PlatformInfo::summary();
+```
 
-auto build_mode =
-    metadata::utils::PlatformInfo::build_mode();
+### `VersionInfo`
 
-auto summary =
-    metadata::utils::PlatformInfo::summary();
-VersionInfo
-auto version =
-    metadata::utils::VersionInfo::current();
+```cpp
+auto version = metadata::utils::VersionInfo::current();
 
 if (metadata::utils::VersionInfo::is_valid(version))
 {
-  // usable version
+    // usable version
 }
-Full Integration Example
+```
+
+## Full Integration Example
+
+```cpp
 #include <filesystem>
 #include <iostream>
 
@@ -703,214 +542,187 @@ using namespace softadastra;
 
 int main()
 {
-  const std::string wal_path = "metadata_node.wal";
-  std::filesystem::remove(wal_path);
+    const std::string wal_path = "metadata_node.wal";
+    std::filesystem::remove(wal_path);
 
-  store::engine::StoreEngine store{
-      store::core::StoreConfig::durable(wal_path)};
+    store::engine::StoreEngine store{
+        store::core::StoreConfig::durable(wal_path)};
 
-  auto sync_config =
-      sync::core::SyncConfig::durable("node-a");
+    auto sync_config = sync::core::SyncConfig::durable("node-a");
 
-  sync::core::SyncContext sync_context{
-      store,
-      sync_config};
+    sync::core::SyncContext  sync_context{store, sync_config};
+    sync::engine::SyncEngine sync_engine{sync_context};
 
-  sync::engine::SyncEngine sync_engine{
-      sync_context};
+    auto transport_config = transport::core::TransportConfig::local(7300);
 
-  auto transport_config =
-      transport::core::TransportConfig::local(7300);
+    transport::core::TransportContext transport_context{
+        transport_config,
+        sync_engine};
 
-  transport::core::TransportContext transport_context{
-      transport_config,
-      sync_engine};
+    transport::backend::TcpTransportBackend transport_backend{transport_config};
 
-  transport::backend::TcpTransportBackend transport_backend{
-      transport_config};
+    transport::engine::TransportEngine transport_engine{
+        transport_context,
+        transport_backend};
 
-  transport::engine::TransportEngine transport_engine{
-      transport_context,
-      transport_backend};
+    if (!transport_engine.start())
+    {
+        return 1;
+    }
 
-  if (!transport_engine.start())
-  {
-    return 1;
-  }
+    auto discovery_config =
+        discovery::core::DiscoveryConfig::local("node-a", 9500, 7300);
 
-  auto discovery_config =
-      discovery::core::DiscoveryConfig::local(
-          "node-a",
-          9500,
-          7300);
+    discovery::core::DiscoveryContext discovery_context{
+        discovery_config,
+        transport_engine};
 
-  discovery::core::DiscoveryContext discovery_context{
-      discovery_config,
-      transport_engine};
+    discovery::backend::UdpDiscoveryBackend discovery_backend{discovery_config};
 
-  discovery::backend::UdpDiscoveryBackend discovery_backend{
-      discovery_config};
+    discovery::engine::DiscoveryEngine discovery_engine{
+        discovery_context,
+        discovery_backend};
 
-  discovery::engine::DiscoveryEngine discovery_engine{
-      discovery_context,
-      discovery_backend};
+    if (!discovery_engine.start())
+    {
+        transport_engine.stop();
+        return 1;
+    }
 
-  if (!discovery_engine.start())
-  {
-    transport_engine.stop();
-    return 1;
-  }
+    auto metadata_options = metadata::MetadataOptions::local("node-a", "1.0.0");
 
-  auto metadata_options =
-      metadata::MetadataOptions::local(
-          "node-a",
-          "1.0.0");
+    metadata::MetadataService metadata_service{metadata_options, discovery_engine};
 
-  metadata::MetadataService metadata_service{
-      metadata_options,
-      discovery_engine};
+    if (!metadata_service.start())
+    {
+        discovery_engine.stop();
+        transport_engine.stop();
+        return 1;
+    }
 
-  if (!metadata_service.start())
-  {
+    auto local = metadata_service.local_or_refresh();
+
+    if (local.has_value())
+    {
+        std::cout << "node id:      " << local->node_id()          << "\n";
+        std::cout << "hostname:     " << local->runtime.hostname   << "\n";
+        std::cout << "os:           " << local->runtime.os_name    << "\n";
+        std::cout << "capabilities: " << local->capabilities.size() << "\n";
+    }
+
+    metadata_service.stop();
     discovery_engine.stop();
     transport_engine.stop();
-    return 1;
-  }
 
-  auto local =
-      metadata_service.local_or_refresh();
+    std::filesystem::remove(wal_path);
 
-  if (local.has_value())
-  {
-    std::cout << "node id: "
-              << local->node_id()
-              << "\n";
-
-    std::cout << "hostname: "
-              << local->runtime.hostname
-              << "\n";
-
-    std::cout << "os: "
-              << local->runtime.os_name
-              << "\n";
-
-    std::cout << "capabilities: "
-              << local->capabilities.size()
-              << "\n";
-  }
-
-  metadata_service.stop();
-  discovery_engine.stop();
-  transport_engine.stop();
-
-  std::filesystem::remove(wal_path);
-
-  return 0;
+    return 0;
 }
-Metadata Flow
-1. MetadataConfig defines local node identity and version
-2. MetadataEngine starts
-3. MetadataEngine builds NodeIdentity
-4. MetadataEngine builds NodeRuntimeInfo
-5. MetadataEngine builds NodeCapabilities
-6. MetadataEngine aggregates them into NodeMetadata
-7. NodeMetadata is stored in MetadataRegistry
-8. Metadata can be encoded, decoded, queried, or refreshed
-Capability Flow
-1. Node declares capabilities
-2. NodeMetadata stores them
-3. MetadataRegistry indexes the metadata
-4. Callers filter nodes by capability
-5. Higher layers can choose compatible nodes
-Examples
+```
 
-Available examples:
+## Metadata Flow
 
-metadata_minimal.cpp
-metadata_local_snapshot.cpp
-metadata_encode_decode_demo.cpp
-metadata_registry_demo.cpp
-metadata_capabilities.cpp
-metadata_registry_filter.cpp
-metadata_custom_provider.cpp
-metadata_service_demo.cpp
+```
+1.  MetadataConfig defines local node identity and version
+2.  MetadataEngine starts
+3.  MetadataEngine builds NodeIdentity
+4.  MetadataEngine builds NodeRuntimeInfo
+5.  MetadataEngine builds NodeCapabilities
+6.  MetadataEngine aggregates them into NodeMetadata
+7.  NodeMetadata is stored in MetadataRegistry
+8.  Metadata can be encoded, decoded, queried, or refreshed
+```
 
-Build examples:
+## Capability Flow
 
-cmake --build build
+```
+1.  Node declares capabilities
+2.  NodeMetadata stores them
+3.  MetadataRegistry indexes the metadata
+4.  Callers filter nodes by capability
+5.  Higher layers can choose compatible nodes
+```
 
-or with preset:
+---
 
-cmake --build --preset default
-Production Notes
+## Examples
 
-The current metadata module is intentionally simple.
+| Example | Description |
+|---------|-------------|
+| `metadata_minimal.cpp` | Minimal setup |
+| `metadata_local_snapshot.cpp` | Local snapshot |
+| `metadata_encode_decode_demo.cpp` | Encoding and decoding |
+| `metadata_registry_demo.cpp` | Registry usage |
+| `metadata_capabilities.cpp` | Capability declaration |
+| `metadata_registry_filter.cpp` | Filtering by capability |
+| `metadata_custom_provider.cpp` | Custom provider |
+| `metadata_service_demo.cpp` | Service usage |
 
-For production, the recommended next steps are:
+```bash
+vix build
+```
 
-signed metadata snapshots
-metadata trust policy
-metadata exchange over transport
-metadata persistence
-peer metadata cache
-metadata version negotiation
-metadata compatibility checks
-structured metadata tracing
-metadata metrics
-metadata filtering by fields
-metadata export formats
-Design Rules
-Metadata describes nodes.
-Discovery finds nodes.
-Transport connects nodes.
-Sync owns operation meaning.
-Store owns state.
-WAL owns durability.
-Metadata must not mutate store.
-Metadata must not apply sync operations.
-Metadata must not connect peers directly.
-Metadata must stay inspectable and serializable.
-Providers must not contain registry orchestration logic.
-Registry must remain in-memory and deterministic for now.
-Dependencies
-Internal
-softadastra/core
-softadastra/store
-softadastra/discovery
-External
-C++20 standard library
-Roadmap
-Public Metadata.hpp aggregator
-Stable MetadataService
-Metadata encoding and decoding
-Metadata registry filters
-Custom metadata providers
-Metadata exchange over transport
-Metadata persistence
-Metadata trust policy
-Signed metadata
-Version compatibility checks
-Capability negotiation
-Metadata diagnostics
-Metadata metrics
-Metadata tracing
-Field-level metadata export
-Summary
+## Production Notes
 
-softadastra/metadata is the node description layer.
+The current metadata module is intentionally simple. Recommended next steps:
 
-It provides:
+- signed metadata snapshots
+- metadata trust policy
+- metadata exchange over transport
+- metadata persistence and peer cache
+- metadata version negotiation and compatibility checks
+- structured metadata tracing and metrics
+- metadata filtering by fields
+- metadata export formats
 
-identity
-runtime info
-capabilities
-metadata snapshots
-encoding and decoding
-registry
-metadata engine
-metadata service
-platform utilities
+## Design Rules
 
-Its job is simple:
+- Metadata describes nodes
+- Discovery finds nodes
+- Transport connects nodes
+- Sync owns operation meaning
+- Store owns state
+- WAL owns durability
+- Metadata must not mutate store
+- Metadata must not apply sync operations
+- Metadata must not connect peers directly
+- Metadata must stay inspectable and serializable
+- Providers must not contain registry orchestration logic
+- Registry must remain in-memory and deterministic for now
 
-describe what a node is and what it can do.
+## Dependencies
+
+**Internal:**
+- `softadastra/core`
+- `softadastra/store`
+- `softadastra/discovery`
+
+**External:**
+- C++20 standard library
+
+## Roadmap
+
+- [ ] Public `Metadata.hpp` aggregator
+- [ ] Stable `MetadataService`
+- [ ] Metadata encoding and decoding
+- [ ] Metadata registry filters
+- [ ] Custom metadata providers
+- [ ] Metadata exchange over transport
+- [ ] Metadata persistence
+- [ ] Metadata trust policy and signed metadata
+- [ ] Version compatibility checks
+- [ ] Capability negotiation
+- [ ] Metadata diagnostics, metrics, and tracing
+- [ ] Field-level metadata export
+
+## Summary
+
+`softadastra/metadata` provides:
+
+- identity, runtime info, and capabilities
+- metadata snapshots
+- encoding and decoding
+- registry, engine, and service
+- platform utilities
+
+> Its job is simple: describe what a node is and what it can do.
