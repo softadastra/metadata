@@ -92,7 +92,7 @@ namespace softadastra::metadata::engine
     /**
      * @brief Move assignment.
      */
-    MetadataEngine &operator=(MetadataEngine &&) noexcept = default;
+    MetadataEngine &operator=(MetadataEngine &&) noexcept = delete;
 
     /**
      * @brief Starts the metadata engine.
