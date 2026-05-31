@@ -62,6 +62,20 @@ namespace softadastra::metadata::core
     MetadataContext() = default;
 
     /**
+     * @brief Creates a metadata context without discovery integration.
+     *
+     * This mode is used for local metadata only.
+     *
+     * @param metadata_config Metadata configuration reference.
+     */
+    explicit MetadataContext(
+        const MetadataConfig &metadata_config) noexcept
+        : config(&metadata_config),
+          discovery(nullptr)
+    {
+    }
+
+    /**
      * @brief Creates a metadata context from dependencies.
      *
      * @param metadata_config Metadata configuration reference.
@@ -83,9 +97,7 @@ namespace softadastra::metadata::core
     [[nodiscard]] bool is_valid() const noexcept
     {
       return config != nullptr &&
-             discovery != nullptr &&
-             config->is_valid() &&
-             discovery->is_running();
+             config->is_valid();
     }
 
     /**
@@ -160,7 +172,7 @@ namespace softadastra::metadata::core
         return Result<discovery_engine::DiscoveryEngine *>::err(
             core_errors::Error::make(
                 core_errors::ErrorCode::InvalidState,
-                "metadata context discovery engine is null"));
+                "metadata discovery integration is not available"));
       }
 
       if (!discovery->is_running())

@@ -78,6 +78,24 @@ namespace softadastra::metadata
     }
 
     /**
+     * @brief Creates a standalone metadata service.
+     *
+     * This constructor is used when metadata is needed without discovery.
+     *
+     * @param options Public metadata options.
+     * @param provider Optional metadata provider.
+     */
+    MetadataService(
+        MetadataOptions options,
+        metadata_backend::IMetadataProvider *provider = nullptr)
+        : options_(std::move(options)),
+          config_(options_.to_config()),
+          context_(config_),
+          engine_(context_, provider)
+    {
+    }
+
+    /**
      * @brief Starts metadata service.
      *
      * @return true on success.
